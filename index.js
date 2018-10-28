@@ -5,21 +5,19 @@ const pluginSyntaxTypescript = require('@babel/plugin-syntax-typescript');
 
 const REACT7 = 7;
 
-function isInType(path) {
-  return [
-    'TSTypeReference',
-    'TSQualifiedName',
-    'TSExpressionWithTypeArguments',
-    'TSTypeQuery',
-  ].includes(path.parent.type);
-}
+const isInType = nodePath => [
+  'TSTypeReference',
+  'TSQualifiedName',
+  'TSExpressionWithTypeArguments',
+  'TSTypeQuery',
+].includes(nodePath.parent.type);
 
 const PARSED_PARAMS = new WeakSet;
 
 module.exports = helperPluginUtils.declare((api, { jsxPragma = 'React' }) => {
   api.assertVersion(REACT7);
   return {
-    inherits: pluginSyntaxTypescript,
+    inherits: pluginSyntaxTypescript.default,
     visitor: {
       CallExpression(path) {
         path.node.typeParameters = null;
@@ -49,9 +47,9 @@ module.exports = helperPluginUtils.declare((api, { jsxPragma = 'React' }) => {
                   p :
                   core.types.isAssignmentPattern(p) && core.types.isIdentifier(p.left) ?
                     p.left :
-                    null;
+                    { name: null };
 
-                if (p === null) {
+                if (name === null) {
                   throw path.buildCodeFrameError('Parameter properties can not be destructuring patterns.');
                 }
 
@@ -93,7 +91,6 @@ module.exports = helperPluginUtils.declare((api, { jsxPragma = 'React' }) => {
 
         if (node.declare) {
           path.remove();
-          return;
         }
 
         if (node.abstract) node.abstract = null;
@@ -201,17 +198,17 @@ module.exports = helperPluginUtils.declare((api, { jsxPragma = 'React' }) => {
 
       TSExportAssignment(path) {
         throw path.buildCodeFrameError(`
-          'export =' is not supported by @babel/plugin-transform-typescript
-          Please consider using 'export <value>;'.
-        `);
+        'export =' is not supported by @babel/plugin-transform-typescript
+        Please consider using 'export <value>;'.
+      `);
       },
 
       TSImportEqualsDeclaration(path) {
         throw path.buildCodeFrameError(`
-          'import =' is not supported by @babel/plugin-transform-typescript
-          Please consider using 'import <moduleName> from "<moduleName>";'
-          alongside Typescript's --allowSyntheticDefaultImports option.
-        `);
+        'import =' is not supported by @babel/plugin-transform-typescript
+        Please consider using 'import <moduleName> from "<moduleName>"; alongside
+        Typescript's --allowSyntheticDefaultImports option.
+      `);
       },
 
       TSIndexSignature(path) {

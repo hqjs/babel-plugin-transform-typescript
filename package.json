@@ -11,6 +11,7 @@
     "url": "git+https://github.com/hqjs/babel-plugin-transform-typescript.git"
   },
   "dependencies": {
+    "@babel/core": "^7.1.2",
     "@babel/helper-plugin-utils": "^7.0.0",
     "@babel/plugin-syntax-typescript": "^7.0.0"
   },
