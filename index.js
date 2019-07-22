@@ -43,7 +43,7 @@ function registerGlobalType(programScope, name) {
   GLOBAL_TYPES.get(programScope.path.node).add(name);
 }
 
-export default declare(
+module.exports = declare(
   (api, { jsxPragma = "React", allowNamespaces = false }) => {
     api.assertVersion(7);
 
