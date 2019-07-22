@@ -1,6 +1,6 @@
 {
   "name": "@hqjs/babel-plugin-transform-typescript",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "Original babel plugin fork that supports parameters decorators and dependency injection",
   "main": "index.js",
   "scripts": {
@@ -11,12 +11,12 @@
     "url": "git+https://github.com/hqjs/babel-plugin-transform-typescript.git"
   },
   "dependencies": {
-    "@babel/core": "^7.1.2",
+    "@babel/core": "^7.5.5",
     "@babel/helper-plugin-utils": "^7.0.0",
-    "@babel/plugin-syntax-typescript": "^7.0.0"
+    "@babel/plugin-syntax-typescript": "^7.3.3"
   },
   "peerDependencies": {
-    "@babel/core": "^7.1.2"
+    "@babel/core": "^7.5.5"
   },
   "keywords": [
     "babel",
