@@ -1,5 +1,5 @@
 const { declare } = require("@babel/helper-plugin-utils");
-const syntaxTypeScript = require("@babel/plugin-syntax-typescript");
+const { default: syntaxTypeScript } = require("@babel/plugin-syntax-typescript");
 const { types: t, template } = require("@babel/core");
 const { injectInitialization } = require("@babel/helper-create-class-features-plugin");
 
