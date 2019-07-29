@@ -44,7 +44,7 @@ function registerGlobalType(programScope, name) {
 }
 
 module.exports = declare(
-  (api, { jsxPragma = "React", allowNamespaces = false }) => {
+  (api, { jsxPragma = "React", allowNamespaces = false, removeUnusedImports = true }) => {
     api.assertVersion(7);
 
     const JSX_ANNOTATION_REGEX = /\*?\s*@jsx\s+([^\s]+)/;
@@ -99,6 +99,7 @@ module.exports = declare(
                   // the import statement was injected then it wasn't a typescript type
                   // import anyway.
                   if (
+                    removeUnusedImports &&
                     binding &&
                     isImportTypeOnly({
                       binding,
