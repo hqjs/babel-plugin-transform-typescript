@@ -24,7 +24,7 @@
     "hq",
     "typescript"
   ],
-  "author": "hqjs <hqjsorg@gmail.com>",
+  "author": "hqjs <hqjs.org@gmail.com>",
   "license": "MIT",
   "bugs": {
     "url": "https://github.com/hqjs/babel-plugin-transform-typescript/issues"

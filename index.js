@@ -417,17 +417,8 @@ module.exports = declare(
         return true;
       }
 
-      // "React" or the JSX pragma is referenced as a value if there are any JSX elements in the code.
-      let sourceFileHasJsx = false;
-      programPath.traverse({
-        JSXElement() {
-          sourceFileHasJsx = true;
-        },
-        JSXFragment() {
-          sourceFileHasJsx = true;
-        },
-      });
-      return !sourceFileHasJsx;
+      // JSX is already compilled, we need to check if jsxPragma is referenced
+      return !programPath.scope.hasBinding(binding.identifier.name);
     }
   },
 );
