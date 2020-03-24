@@ -50,6 +50,7 @@ module.exports = declare(
       jsxPragma = "React",
       allowNamespaces = false,
       allowDeclareFields = false,
+      onlyRemoveTypeImports = false,
       removeUnusedImports = true
     },
     ) => {
@@ -75,8 +76,15 @@ module.exports = declare(
             );
           }
 
-          path.remove();
-        } else if (!allowDeclareFields && !node.value && !node.decorators) {
+        if (!node.decorators) {
+            path.remove();
+          }
+        } else if (
+          !allowDeclareFields &&
+          !node.value &&
+          !node.decorators &&
+          !t.isClassPrivateProperty(node)
+        ) {
           path.remove();
         }
 
@@ -85,6 +93,7 @@ module.exports = declare(
         if (node.readonly) node.readonly = null;
         if (node.optional) node.optional = null;
         if (node.typeAnnotation) node.typeAnnotation = null;
+        if (node.definite) node.definite = null;
       },
       method({ node }) {
         if (node.accessibility) node.accessibility = null;
@@ -165,6 +174,14 @@ module.exports = declare(
             // remove type imports
             for (let stmt of path.get("body")) {
               if (t.isImportDeclaration(stmt)) {
+                if (stmt.node.importKind === "type") {
+                stmt.remove();
+                continue;
+              }
+
+              // If onlyRemoveTypeImports is `true`, only remove type-only imports
+              // and exports introduced in TypeScript 3.8.
+              if (!onlyRemoveTypeImports) {
                 // Note: this will allow both `import { } from "m"` and `import "m";`.
                 // In TypeScript, the former would be elided.
                 if (stmt.node.specifiers.length === 0) {
@@ -205,6 +222,7 @@ module.exports = declare(
                     importPath.remove();
                   }
                 }
+              }
 
                 continue;
               }
@@ -233,7 +251,18 @@ module.exports = declare(
         },
 
         ExportNamedDeclaration(path) {
+          if (path.node.exportKind === "type") {
+            path.remove();
+            return;
+          }
+
           // remove export declaration if it's exporting only types
+          // This logic is needed when exportKind is "value", because
+          // currently the "type" keyword is optional.
+          // TODO:
+          // Also, currently @babel/parser sets exportKind to "value" for
+          //   export interface A {}
+          //   etc.
           if (
             !path.node.source &&
             path.node.specifiers.length > 0 &&
@@ -305,13 +334,16 @@ module.exports = declare(
           // class transform would transform the class, causing more specific
           // visitors to not run.
           path.get("body.body").forEach(child => {
-            if (child.isClassMethod()) {
+            if (child.isClassMethod() || child.isClassPrivateMethod()) {
               if (child.node.kind === "constructor") {
                 classMemberVisitors.constructor(child, path);
               } else {
                 classMemberVisitors.method(child, path);
               }
-            } else if (child.isClassProperty()) {
+            } else if (
+              child.isClassProperty() ||
+              child.isClassPrivateProperty()
+            ) {
               classMemberVisitors.field(child, path);
             }
           });
