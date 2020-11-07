@@ -13,6 +13,8 @@ function isInType(path) {
     case "TSExpressionWithTypeArguments":
     case "TSTypeQuery":
       return true;
+    case "ExportSpecifier":
+      return path.parentPath.parent.exportKind === "type";
     default:
       return false;
   }
@@ -47,7 +49,8 @@ module.exports = declare(
   (
     api,
     {
-      jsxPragma = "React",
+      jsxPragma = "React.createElement",
+      jsxPragmaFrag = "React.Fragment",
       allowNamespaces = false,
       allowDeclareFields = false,
       onlyRemoveTypeImports = false,
@@ -56,7 +59,7 @@ module.exports = declare(
     ) => {
     api.assertVersion(7);
 
-    const JSX_ANNOTATION_REGEX = /\*?\s*@jsx\s+([^\s]+)/;
+    const JSX_PRAGMA_REGEX = /\*?\s*@jsx((?:Frag)?)\s+([^\s]+)/;
 
     const classMemberVisitors = {
       field(path) {
@@ -68,15 +71,24 @@ module.exports = declare(
               `@babel/plugin-transform-typescript or @babel/preset-typescript is enabled.`,
           );
         }
-        if (node.definite || node.declare) {
+        if (node.declare) {
           if (node.value) {
             throw path.buildCodeFrameError(
-              `Definietly assigned fields and fields with the 'declare' modifier cannot` +
-                ` be initialized here, but only in the constructor`,
+              `Fields with the 'declare' modifier cannot be initialized here, but only in the constructor`,
             );
           }
-
         if (!node.decorators) {
+            path.remove();
+          }
+        } else if (node.definite) {
+          if (node.value) {
+            throw path.buildCodeFrameError(
+              `Definitely assigned fields cannot be initialized here, but only in the constructor`,
+            );
+          }
+          // keep the definitely assigned fields only when `allowDeclareFields` (equivalent of
+          // Typescript's `useDefineForClassFields`) is true
+          if (!allowDeclareFields && !node.decorators) {
             path.remove();
           }
         } else if (
@@ -94,6 +106,7 @@ module.exports = declare(
         if (node.optional) node.optional = null;
         if (node.typeAnnotation) node.typeAnnotation = null;
         if (node.definite) node.definite = null;
+        if (node.declare) node.declare = null;
       },
       method({ node }) {
         if (node.accessibility) node.accessibility = null;
@@ -135,7 +148,8 @@ module.exports = declare(
               );
             }
 
-            return template.statement.ast`this.${id} = ${id}`;
+            return template.statement.ast`
+              this.${t.cloneNode(id)} = ${t.cloneNode(id)}`;
           });
 
           injectInitialization(classPath, path, assigns);
@@ -157,6 +171,7 @@ module.exports = declare(
           exit(path, state) {
             const { file } = state;
             let fileJsxPragma = null;
+            let fileJsxPragmaFrag = null;
 
             if (!GLOBAL_TYPES.has(path.node)) {
               GLOBAL_TYPES.set(path.node, new Set());
@@ -164,9 +179,14 @@ module.exports = declare(
 
             if (file.ast.comments) {
               for (const comment of (file.ast.comments)) {
-                const jsxMatches = JSX_ANNOTATION_REGEX.exec(comment.value);
+                const jsxMatches = JSX_PRAGMA_REGEX.exec(comment.value);
                 if (jsxMatches) {
-                  fileJsxPragma = jsxMatches[1];
+                  if (jsxMatches[1]) {
+                    // isFragment
+                    fileJsxPragmaFrag = jsxMatches[2];
+                  } else {
+                    fileJsxPragma = jsxMatches[2];
+                  }
                 }
               }
             }
@@ -174,6 +194,11 @@ module.exports = declare(
             let pragmaImportName = fileJsxPragma || jsxPragma;
             if (pragmaImportName) {
               [pragmaImportName] = pragmaImportName.split(".");
+            }
+
+            let pragmaFragImportName = fileJsxPragmaFrag || jsxPragmaFrag;
+            if (pragmaFragImportName) {
+              [pragmaFragImportName] = pragmaFragImportName.split(".");
             }
 
             // remove type imports
@@ -211,7 +236,8 @@ module.exports = declare(
                     isImportTypeOnly({
                       binding,
                       programPath: path,
-                      jsxPragma: pragmaImportName,
+                      pragmaImportName,
+                      pragmaFragImportName,
                     })
                   ) {
                     importsToRemove.push(binding.path);
@@ -423,6 +449,10 @@ module.exports = declare(
           path.node.typeParameters = null;
         },
 
+        OptionalCallExpression(path) {
+          path.node.typeParameters = null;
+        },
+
         NewExpression(path) {
           path.node.typeParameters = null;
         },
@@ -443,14 +473,22 @@ module.exports = declare(
       // 'access' and 'readonly' are only for parameter properties, so constructor visitor will handle them.
     }
 
-    function isImportTypeOnly({ binding, programPath, jsxPragma }) {
+    function isImportTypeOnly({
+      binding,
+      programPath,
+      pragmaImportName,
+      pragmaFragImportName,
+    }) {
       for (const path of binding.referencePaths) {
         if (!isInType(path)) {
           return false;
         }
       }
 
-      if (binding.identifier.name !== jsxPragma) {
+      if (
+        binding.identifier.name !== pragmaImportName &&
+        binding.identifier.name !== pragmaFragImportName
+      ) {
         return true;
       }
 
